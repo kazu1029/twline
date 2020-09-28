@@ -3,6 +3,9 @@ module github.com/kazu1029/twline
 go 1.15
 
 require (
+	github.com/PuerkitoBio/goquery v1.5.1
+	github.com/chromedp/cdproto v0.0.0-20200709115526-d1f6fc58448b
+	github.com/chromedp/chromedp v0.5.3
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/magiconair/properties v1.8.4 // indirect
 	github.com/mitchellh/go-homedir v1.1.0

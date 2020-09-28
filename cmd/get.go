@@ -16,9 +16,9 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
+	"github.com/kazu1029/twline/get"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -31,12 +31,9 @@ const (
 var getCmd = &cobra.Command{
 	Use:   "get",
 	Short: "get command will get timelines from you specified",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Long: `get command will get timelimes from you specified urls.
+e.g.
+twline get "https://twitter.com/search?q=trip&src=typed_query"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		isList := viper.GetBool(listKey)
 
@@ -47,7 +44,7 @@ to quickly create a Cobra application.`,
 			urls = []string{args[0]}
 		}
 
-		fmt.Println(urls)
+		get.GetTimeline(urls)
 	},
 	Args: cobra.MinimumNArgs(1),
 }
@@ -55,6 +52,6 @@ to quickly create a Cobra application.`,
 func init() {
 	rootCmd.AddCommand(getCmd)
 
-	getCmd.Flags().BoolP(listKey, "l", false, "list for multiple target urls")
+	getCmd.Flags().BoolP(listKey, "l", false, "list for multiple target urls.")
 	viper.BindPFlag(listKey, getCmd.Flags().Lookup(listKey))
 }
