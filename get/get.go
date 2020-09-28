@@ -15,12 +15,16 @@ const (
 	docElem   = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > span"
 	tweetElem = "section > div > div > div > div > div > article > div > div"
 	waitElem  = "article"
-	waitTweet = "div:nth-child(20) > div > div > article > div > div"
 )
 
 func GetTimeline(urls []string) {
 	ctx := context.Background()
-	cc, cancel := chromedp.NewContext(ctx)
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.DisableGPU,
+		chromedp.WindowSize(1200, 3000),
+	)
+	allocCtx, _ := chromedp.NewExecAllocator(ctx, opts...)
+	cc, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
 
 	for _, url := range urls {
@@ -54,17 +58,6 @@ func readFromHTML(html string) {
 func scrape(url string, str *string) chromedp.Tasks {
 	return chromedp.Tasks{
 		chromedp.Navigate(url),
-		// chromedp.ActionFunc(func(ctx context.Context) error {
-		// 	_, exp, err := runtime.Evaluate(`window.scrollTo(0, 2000);`).Do(ctx)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// 	if exp != nil {
-		// 		return exp
-		// 	}
-		// 	return nil
-		// }),
-		// chromedp.WaitVisible(waitTweet),
 		chromedp.WaitVisible(waitElem),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			node, err := dom.GetDocument().Do(ctx)
