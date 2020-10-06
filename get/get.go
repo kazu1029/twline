@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/cdproto/dom"
@@ -14,7 +15,6 @@ import (
 const (
 	docElem   = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > span"
 	tweetElem = "section > div > div > div > div > div > article > div > div"
-	waitElem  = "article"
 )
 
 func GetTimeline(urls []string) {
@@ -24,17 +24,25 @@ func GetTimeline(urls []string) {
 		chromedp.WindowSize(1200, 3000),
 	)
 	allocCtx, _ := chromedp.NewExecAllocator(ctx, opts...)
-	cc, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
 
+	var wg sync.WaitGroup
+	wg.Add(len(urls))
 	for _, url := range urls {
-		var html string
-		err := chromedp.Run(cc, scrape(url, &html))
-		if err != nil {
-			log.Fatal(err)
-		}
-		readFromHTML(html)
+		go func(u string) {
+			var html string
+			defer wg.Done()
+			cc, cancel := chromedp.NewContext(allocCtx)
+			defer cancel()
+			err := chromedp.Run(cc, scrape(u, &html))
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			readFromHTML(html)
+		}(url)
 	}
+
+	wg.Wait()
 }
 
 func readFromHTML(html string) {
@@ -51,14 +59,15 @@ func readFromHTML(html string) {
 		// 	log.Fatal(err)
 		// }
 		// fmt.Println("docHtml: ", docHtml)
-		fmt.Println("doc text: ", s.Find(docElem).Text())
+		text := s.Find(docElem).Text()
+		fmt.Println(text)
 	})
 }
 
 func scrape(url string, str *string) chromedp.Tasks {
 	return chromedp.Tasks{
 		chromedp.Navigate(url),
-		chromedp.WaitVisible(waitElem),
+		chromedp.WaitVisible(tweetElem),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			node, err := dom.GetDocument().Do(ctx)
 			if err != nil {
