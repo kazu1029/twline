@@ -24,8 +24,11 @@ import (
 )
 
 const (
-	listKey = "list"
+	listKey   = "list"
+	outputKey = "output"
 )
+
+var outputSource string
 
 // getCmd represents the get command
 var getCmd = &cobra.Command{
@@ -33,7 +36,7 @@ var getCmd = &cobra.Command{
 	Short: "get command will get timelines from you specified",
 	Long: `get command will get timelimes from you specified urls.
 e.g.
-twline get "https://twitter.com/search?q=trip&src=typed_query"`,
+twline get "search?q=trip&src=typed_query"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		isList := viper.GetBool(listKey)
 
@@ -44,7 +47,7 @@ twline get "https://twitter.com/search?q=trip&src=typed_query"`,
 			urls = []string{args[0]}
 		}
 
-		get.GetTimeline(urls)
+		get.GetTimeline(urls, outputSource)
 	},
 	Args: cobra.MinimumNArgs(1),
 }
@@ -54,4 +57,5 @@ func init() {
 
 	getCmd.Flags().BoolP(listKey, "l", false, "list for multiple target urls.")
 	viper.BindPFlag(listKey, getCmd.Flags().Lookup(listKey))
+	getCmd.Flags().StringVarP(&outputSource, outputKey, "o", "", "Output Destrination.")
 }
