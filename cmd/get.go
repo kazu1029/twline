@@ -40,14 +40,14 @@ twline get "search?q=trip&src=typed_query"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		isList := viper.GetBool(listKey)
 
-		var urls []string
+		var targets []string
 		if isList {
-			urls = strings.Split(args[0], ",")
+			targets = strings.Split(args[0], ",")
 		} else {
-			urls = []string{args[0]}
+			targets = []string{args[0]}
 		}
 
-		get.GetTimeline(urls, outputSource)
+		get.Timeline(targets, outputSource)
 	},
 	Args: cobra.MinimumNArgs(1),
 }

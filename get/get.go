@@ -18,19 +18,24 @@ import (
 )
 
 const (
-	docElem   = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > span"
-	tweetElem = "section > div > div > div > div > div > article > div > div"
-	baseUrl   = "https://twitter.com/"
+	usernameElem = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > div.css-1dbjc4n.r-1d09ksm.r-18u37iz.r-1wbh5a2 > div.css-1dbjc4n.r-1wbh5a2.r-dnmrzs > a > div > div.css-1dbjc4n.r-1awozwy.r-18u37iz.r-dnmrzs"
+	timeElem     = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > div.css-1dbjc4n.r-1d09ksm.r-18u37iz.r-1wbh5a2 > a > time"
+	imgElem      = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > div > div > div > a > div > div.r-1p0dtai.r-1pi2tsx.r-1d2f490.r-u8s1d.r-ipm5af.r-13qz1uu > div > img"
+	docElem      = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > span"
+	tweetElem    = "section > div > div > div > div > div > article > div > div"
+	baseURL      = "https://twitter.com/"
 )
 
-type Tweet struct {
-	ID        int       `json:"id"`
-	Body      string    `json:"body"`
-	User      string    `json:"user"`
-	TweetedAt time.Time `json:"tweeted_at"`
+type tweet struct {
+	ID        int    `json:"id"`
+	Body      string `json:"body"`
+	User      string `json:"user"`
+	TweetedAt string `json:"tweeted_at"`
 }
 
-func GetTimeline(urls []string, output string) {
+// Timeline fetchs tweets from assigned targets arg.
+// output arg is to specify output source.
+func Timeline(targets []string, output string) {
 	ctx := context.Background()
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.DisableGPU,
@@ -39,14 +44,14 @@ func GetTimeline(urls []string, output string) {
 	allocCtx, _ := chromedp.NewExecAllocator(ctx, opts...)
 
 	var wg sync.WaitGroup
-	wg.Add(len(urls))
-	for _, url := range urls {
-		go func(u string) {
+	wg.Add(len(targets))
+	for _, target := range targets {
+		go func(target string) {
 			var html string
 			defer wg.Done()
 			cc, cancel := chromedp.NewContext(allocCtx)
 			defer cancel()
-			err := chromedp.Run(cc, scrape(u, &html))
+			err := chromedp.Run(cc, scrape(target, &html))
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -54,23 +59,23 @@ func GetTimeline(urls []string, output string) {
 			tweets := readFromHTML(html)
 			switch output {
 			case "csv":
-				outputCSV("hoge", tweets)
+				outputCSV(target, tweets)
 			default:
 				fmt.Println(tweets)
 			}
-		}(url)
+		}(target)
 	}
 
 	wg.Wait()
 }
 
-func outputCSV(filename string, tweets []Tweet) {
+func outputCSV(filename string, tweets []tweet) {
 	nowStr := strconv.FormatInt(time.Now().Unix(), 10)
-	file, err := os.OpenFile("tmp/"+filename+nowStr+".csv", os.O_WRONLY|os.O_CREATE, 0600)
-	defer file.Close()
+	file, err := os.OpenFile("tmp/"+filename+"-"+nowStr+".csv", os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer file.Close()
 
 	w := csv.NewWriter(file)
 	rows := genRows(tweets)
@@ -90,13 +95,14 @@ func genRows(src interface{}) [][]string {
 	sl := toSlice(src)
 	rows := make([][]string, 1)
 
-	for _, d := range sl {
+	for n, d := range sl {
 		rows = append(rows, []string{})
 		v := reflect.ValueOf(d)
-
 		for i := 0; i < v.NumField(); i++ {
-			colName := strings.ToLower(v.Type().Field(i).Name)
-			rows[0] = append(rows[0], colName)
+			if n == 0 {
+				colName := strings.ToLower(v.Type().Field(i).Name)
+				rows[0] = append(rows[0], colName)
+			}
 			rows[len(rows)-1] = append(rows[len(rows)-1], fmt.Sprint(v.Field(i).Interface()))
 		}
 	}
@@ -116,20 +122,26 @@ func toSlice(src interface{}) []interface{} {
 	return ret
 }
 
-func readFromHTML(html string) []Tweet {
+func readFromHTML(html string) []tweet {
 	reader := strings.NewReader(html)
 	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var tweets []Tweet
+	var tweets []tweet
 	tSelections := doc.Find(tweetElem)
 	tSelections.Each(func(i int, s *goquery.Selection) {
+		// imgSrc, _ := s.Find(imgElem).Attr("src")
+		// fmt.Printf("imgText: %v\n", imgSrc)
+		user := s.Find(usernameElem).Text()
+		timeStr, _ := s.Find(timeElem).Attr("datetime")
 		text := s.Find(docElem).Text()
-		tweet := Tweet{
-			ID:   i,
-			Body: text,
+		tweet := tweet{
+			ID:        i,
+			Body:      text,
+			User:      user,
+			TweetedAt: timeStr,
 		}
 		tweets = append(tweets, tweet)
 	})
@@ -138,7 +150,7 @@ func readFromHTML(html string) []Tweet {
 }
 
 func scrape(url string, str *string) chromedp.Tasks {
-	u := baseUrl + url
+	u := baseURL + url
 	return chromedp.Tasks{
 		chromedp.Navigate(u),
 		chromedp.WaitVisible(tweetElem),
