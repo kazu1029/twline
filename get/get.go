@@ -20,17 +20,22 @@ import (
 const (
 	usernameElem = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > div.css-1dbjc4n.r-1d09ksm.r-18u37iz.r-1wbh5a2 > div.css-1dbjc4n.r-1wbh5a2.r-dnmrzs > a > div > div.css-1dbjc4n.r-1awozwy.r-18u37iz.r-dnmrzs"
 	timeElem     = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > div.css-1dbjc4n.r-1d09ksm.r-18u37iz.r-1wbh5a2 > a > time"
-	imgElem      = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > div > div > div > a > div > div.r-1p0dtai.r-1pi2tsx.r-1d2f490.r-u8s1d.r-ipm5af.r-13qz1uu > div > img"
+	rtsElem      = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div.css-1dbjc4n.r-18u37iz.r-1wtj0ep.r-156q2ks.r-1mdbhws > div > div"
+	favsElem     = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div.css-1dbjc4n.r-18u37iz.r-1wtj0ep.r-156q2ks.r-1mdbhws > div > div"
 	docElem      = "article > div > div > div > div.css-1dbjc4n.r-18u37iz > div.css-1dbjc4n.r-1iusvr4.r-16y2uox.r-1777fci.r-1mi0q7o > div > div > div > span"
 	tweetElem    = "section > div > div > div > div > div > article > div > div"
 	baseURL      = "https://twitter.com/"
 )
 
 type tweet struct {
-	ID        int    `json:"id"`
-	Body      string `json:"body"`
-	User      string `json:"user"`
-	TweetedAt string `json:"tweeted_at"`
+	ID        int      `json:"id"`
+	Body      string   `json:"body"`
+	User      string   `json:"user"`
+	Images    []string `json:"images"`
+	Links     []string `json:"links"`
+	Rts       string   `json:"rts"`
+	Favs      string   `json:"favs"`
+	TweetedAt string   `json:"tweeted_at"`
 }
 
 // Timeline fetchs tweets from assigned targets arg.
@@ -132,15 +137,36 @@ func readFromHTML(html string) []tweet {
 	var tweets []tweet
 	tSelections := doc.Find(tweetElem)
 	tSelections.Each(func(i int, s *goquery.Selection) {
-		// imgSrc, _ := s.Find(imgElem).Attr("src")
-		// fmt.Printf("imgText: %v\n", imgSrc)
 		user := s.Find(usernameElem).Text()
 		timeStr, _ := s.Find(timeElem).Attr("datetime")
 		text := s.Find(docElem).Text()
+		var images []string
+		s.Find("img").Each(func(j int, t *goquery.Selection) {
+			src, _ := t.Attr("src")
+			images = append(images, src)
+		})
+		var links []string
+		s.Find("a").Each(func(j int, t *goquery.Selection) {
+			title, _ := t.Attr("title")
+			if strings.HasPrefix(title, "https://") {
+				links = append(links, title)
+			}
+		})
+
+		rtsStr, _ := s.Find(rtsElem).Attr("aria-label")
+		fmt.Printf("rtsStr: %v\n", rtsStr)
+		rtsAry := strings.Split(rtsStr, " ")
+		favsStr, _ := s.Find(favsElem).Attr("aria-label")
+		fmt.Printf("favsStr: %v\n", favsStr)
+		favsAry := strings.Split(favsStr, " ")
 		tweet := tweet{
 			ID:        i,
 			Body:      text,
 			User:      user,
+			Images:    images,
+			Links:     links,
+			Rts:       rtsAry[0],
+			Favs:      favsAry[0],
 			TweetedAt: timeStr,
 		}
 		tweets = append(tweets, tweet)
